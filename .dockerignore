@@ -1,0 +1,7 @@
+target
+.git
+.superpowers
+.idea
+*.iml
+.DS_Store
+workspace

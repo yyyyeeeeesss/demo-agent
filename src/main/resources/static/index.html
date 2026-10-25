@@ -1,0 +1,275 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DemoAgent | Spring AI</title>
+    <style>
+        :root {
+            --bg-primary: #121417;
+            --bg-secondary: #1a1d24;
+            --bg-tertiary: #242832;
+            --text-primary: #e6edf3;
+            --text-secondary: #8b949e;
+            --accent: #58a6ff;
+            --accent-green: #3fb950;
+            --accent-amber: #d29922;
+            --accent-red: #f85149;
+            --border: #30363d;
+            --terminal-bg: #090c10;
+        }
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, monospace; }
+        body { background: var(--bg-primary); color: var(--text-primary); display: flex; flex-direction: column; height: 100vh; }
+        header { background: var(--bg-secondary); border-bottom: 1px solid var(--border); padding: 12px 24px; display: flex; justify-content: space-between; align-items: center; }
+        .logo { font-size: 1.15rem; font-weight: 600; display: flex; align-items: center; gap: 8px; color: var(--accent); }
+        .badge { background: var(--bg-tertiary); padding: 4px 10px; border-radius: 12px; font-size: 0.8rem; border: 1px solid var(--border); transition: color 0.2s; }
+        #chat-container { flex: 1; overflow-y: auto; padding: 20px; display: flex; flex-direction: column; gap: 16px; max-width: 900px; margin: 0 auto; width: 100%; }
+        .msg { display: flex; flex-direction: column; gap: 6px; max-width: 85%; animation: fadeIn 0.2s ease; }
+        .msg.user { align-self: flex-end; }
+        .msg.user .bubble { background: #1f4273; border: 1px solid #2f5f9e; border-radius: 12px 12px 2px 12px; padding: 10px 16px; line-height: 1.4; word-break: break-word; }
+        .msg.agent { align-self: flex-start; width: 100%; }
+        .card { background: var(--bg-secondary); border: 1px solid var(--border); border-radius: 8px; overflow: hidden; margin-top: 6px; }
+        .card-header { background: var(--bg-tertiary); padding: 8px 12px; display: flex; justify-content: space-between; align-items: center; font-size: 0.85rem; font-family: monospace; cursor: pointer; user-select: none; }
+        .card-header:hover { background: #2c323f; }
+        .cmd-title { display: flex; align-items: center; gap: 8px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        .toggle-arrow { font-size: 0.75rem; color: var(--text-secondary); transition: transform 0.2s ease; }
+        .terminal { background: var(--terminal-bg); padding: 12px; font-family: "SF Mono", Monaco, Consolas, monospace; font-size: 0.82rem; white-space: pre-wrap; word-break: break-all; color: #7ee787; max-height: 250px; overflow-y: auto; }
+        .status-pill { font-size: 0.75rem; padding: 2px 6px; border-radius: 4px; font-weight: 500; white-space: nowrap; margin-left: 8px; }
+        .pill-success { background: rgba(63, 185, 80, 0.2); color: var(--accent-green); border: 1px solid rgba(63, 185, 80, 0.4); }
+        .pill-error { background: rgba(248, 81, 73, 0.2); color: var(--accent-red); border: 1px solid rgba(248, 81, 73, 0.4); }
+        .pill-running { background: rgba(210, 153, 34, 0.2); color: var(--accent-amber); border: 1px solid rgba(210, 153, 34, 0.4); }
+        .final-answer { background: var(--bg-secondary); border-left: 4px solid var(--accent-green); border-radius: 6px; padding: 14px; line-height: 1.5; margin-top: 6px; word-break: break-word; white-space: pre-wrap; }
+        .thinking-box { color: var(--text-secondary); font-style: italic; font-size: 0.9rem; margin-top: 4px; margin-bottom: 4px; line-height: 1.4; word-break: break-word; }
+        .error-card { background: rgba(248, 81, 73, 0.1); border: 1px solid var(--accent-red); border-radius: 6px; padding: 12px 16px; color: var(--accent-red); margin-top: 6px; line-height: 1.4; }
+        #input-area { background: var(--bg-secondary); border-top: 1px solid var(--border); padding: 16px 20px; }
+        .input-form { max-width: 900px; margin: 0 auto; display: flex; gap: 10px; }
+        input[type="text"] { flex: 1; background: var(--bg-primary); border: 1px solid var(--border); border-radius: 8px; color: var(--text-primary); padding: 12px 16px; font-size: 0.95rem; outline: none; transition: border-color 0.2s; }
+        input[type="text"]:focus { border-color: var(--accent); }
+        button { background: var(--accent); color: #fff; border: none; border-radius: 8px; padding: 12px 20px; font-weight: 600; cursor: pointer; transition: opacity 0.2s; }
+        button:disabled { opacity: 0.5; cursor: not-allowed; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: translateY(0); } }
+    </style>
+</head>
+<body>
+    <header>
+        <div class="logo">🤖 <span>DemoAgent</span> <small style="color:var(--text-secondary);font-size:0.8rem">Spring AI Agent</small></div>
+        <div id="status-badge" class="badge">Ready</div>
+    </header>
+
+    <div id="chat-container">
+        <div class="msg agent">
+            <div class="final-answer">
+                👋 Hello! I am <strong>DemoAgent</strong>, a minimal autonomous coding agent powered by Spring AI.<br/>
+                Give me any programming task and I will inspect files, execute bash commands, and complete it.
+            </div>
+        </div>
+    </div>
+
+    <div id="input-area">
+        <form id="chat-form" class="input-form">
+            <input type="text" id="user-input" placeholder="Ask DemoAgent to do something in the workspace (e.g. 'Create a hello.py script and test it')..." autocomplete="off" required />
+            <button type="submit" id="send-btn">Send</button>
+        </form>
+    </div>
+
+    <script>
+        const chatContainer = document.getElementById('chat-container');
+        const chatForm = document.getElementById('chat-form');
+        const userInput = document.getElementById('user-input');
+        const sendBtn = document.getElementById('send-btn');
+        const statusBadge = document.getElementById('status-badge');
+
+        let currentAgentMsg = null;
+        let eventSource = null;
+        let streamFinished = false;
+        let lastThinkingElem = null;
+        let lastThinkingText = null;
+
+        function scrollToBottom() {
+            chatContainer.scrollTop = chatContainer.scrollHeight;
+        }
+
+        function toggleTerminal(headerElem) {
+            const terminal = headerElem.nextElementSibling;
+            const arrow = headerElem.querySelector('.toggle-arrow');
+            if (!terminal) return;
+            const isHidden = terminal.style.display === 'none';
+            terminal.style.display = isHidden ? 'block' : 'none';
+            if (arrow) {
+                arrow.style.transform = isHidden ? 'rotate(0deg)' : 'rotate(-90deg)';
+            }
+        }
+
+        chatForm.addEventListener('submit', (e) => {
+            e.preventDefault();
+            const prompt = userInput.value.trim();
+            if (!prompt || eventSource) return;
+
+            // Render user bubble
+            const userMsg = document.createElement('div');
+            userMsg.className = 'msg user';
+            userMsg.innerHTML = `<div class="bubble">${escapeHtml(prompt)}</div>`;
+            chatContainer.appendChild(userMsg);
+
+            userInput.value = '';
+            userInput.disabled = true;
+            sendBtn.disabled = true;
+            statusBadge.innerText = 'Agent Working...';
+            statusBadge.style.color = 'var(--accent-amber)';
+
+            // Prepare agent container
+            currentAgentMsg = document.createElement('div');
+            currentAgentMsg.className = 'msg agent';
+            chatContainer.appendChild(currentAgentMsg);
+            scrollToBottom();
+
+            streamFinished = false;
+            lastThinkingElem = null;
+            lastThinkingText = null;
+
+            // Connect to SSE stream
+            const streamUrl = `/api/chat/stream?prompt=${encodeURIComponent(prompt)}`;
+            eventSource = new EventSource(streamUrl);
+
+            eventSource.addEventListener('task_started', (e) => {
+                statusBadge.innerText = 'Task Started';
+                statusBadge.style.color = 'var(--accent-amber)';
+            });
+
+            eventSource.addEventListener('turn_started', (e) => {
+                const data = JSON.parse(e.data);
+                statusBadge.innerText = `Turn ${data.turn} / 30`;
+                statusBadge.style.color = 'var(--accent-amber)';
+            });
+
+            eventSource.addEventListener('thinking', (e) => {
+                const data = JSON.parse(e.data);
+                if (!data.text || !data.text.trim()) return;
+
+                const thought = document.createElement('div');
+                thought.className = 'thinking-box';
+                thought.innerText = data.text;
+                currentAgentMsg.appendChild(thought);
+
+                lastThinkingElem = thought;
+                lastThinkingText = data.text.trim();
+                scrollToBottom();
+            });
+
+            eventSource.addEventListener('tool_call', (e) => {
+                const data = JSON.parse(e.data);
+                // Clear active thinking tracking since genuine tool execution is happening
+                lastThinkingElem = null;
+                lastThinkingText = null;
+
+                const card = document.createElement('div');
+                card.className = 'card';
+                card.id = `turn-${data.turn}-cmd`;
+                card.innerHTML = `
+                    <div class="card-header" onclick="toggleTerminal(this)" title="Click to collapse/expand terminal output">
+                        <div class="cmd-title">
+                            <span class="toggle-arrow">▼</span>
+                            <span>$ ${escapeHtml(data.command)}</span>
+                        </div>
+                        <span class="status-pill pill-running">Running...</span>
+                    </div>
+                    <div class="terminal">Executing command in /workspace...</div>
+                `;
+                currentAgentMsg.appendChild(card);
+                scrollToBottom();
+            });
+
+            eventSource.addEventListener('tool_result', (e) => {
+                const data = JSON.parse(e.data);
+                const card = document.getElementById(`turn-${data.turn}-cmd`);
+                if (card) {
+                    const pill = card.querySelector('.status-pill');
+                    if (pill) {
+                        pill.className = `status-pill ${data.exitCode === 0 ? 'pill-success' : 'pill-error'}`;
+                        pill.innerText = `Exit ${data.exitCode}`;
+                    }
+                    const term = card.querySelector('.terminal');
+                    if (term) {
+                        term.innerText = data.output || '(no output)';
+                    }
+                }
+                scrollToBottom();
+            });
+
+            eventSource.addEventListener('final_answer', (e) => {
+                const data = JSON.parse(e.data);
+                const answerText = (data.text || '').trim();
+
+                // If identical to immediately preceding thinking box, clean it up to prevent duplicate display
+                if (lastThinkingElem && lastThinkingText === answerText) {
+                    lastThinkingElem.remove();
+                    lastThinkingElem = null;
+                    lastThinkingText = null;
+                }
+
+                const answer = document.createElement('div');
+                answer.className = 'final-answer';
+                answer.innerText = data.text || '(Completed)';
+                currentAgentMsg.appendChild(answer);
+                finishStream();
+            });
+
+            eventSource.addEventListener('error', (e) => {
+                if (streamFinished) return;
+
+                if (e.data) {
+                    try {
+                        const data = JSON.parse(e.data);
+                        const err = document.createElement('div');
+                        err.className = 'error-card';
+                        err.innerText = `Error: ${data.text || 'An agent error occurred.'}`;
+                        currentAgentMsg.appendChild(err);
+                    } catch (parseErr) {
+                        const err = document.createElement('div');
+                        err.className = 'error-card';
+                        err.innerText = `Error: ${e.data}`;
+                        currentAgentMsg.appendChild(err);
+                    }
+                    finishStream();
+                } else {
+                    // Browser onerror or connection closed
+                    if (eventSource && eventSource.readyState === EventSource.CLOSED) {
+                        finishStream();
+                    } else {
+                        // Connection lost or failed before completion
+                        const err = document.createElement('div');
+                        err.className = 'error-card';
+                        err.innerText = 'Stream connection ended.';
+                        currentAgentMsg.appendChild(err);
+                        finishStream();
+                    }
+                }
+            });
+        });
+
+        function finishStream() {
+            if (streamFinished) return;
+            streamFinished = true;
+            if (eventSource) {
+                eventSource.close();
+                eventSource = null;
+            }
+            userInput.disabled = false;
+            sendBtn.disabled = false;
+            userInput.focus();
+            statusBadge.innerText = 'Ready';
+            statusBadge.style.color = 'var(--text-primary)';
+            scrollToBottom();
+        }
+
+        function escapeHtml(str) {
+            return (str || '')
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;')
+                .replace(/'/g, '&#39;');
+        }
+    </script>
+</body>
+</html>

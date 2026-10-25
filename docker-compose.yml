@@ -1,0 +1,17 @@
+services:
+  demo-agent:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: demo-agent
+    ports:
+      - "8080:8080"
+    volumes:
+      - ./workspace:/workspace
+    environment:
+      - OPENAI_BASE_URL=${OPENAI_BASE_URL:-http://host.docker.internal:11434}
+      - OPENAI_API_KEY=${OPENAI_API_KEY:-ollama}
+      - OPENAI_MODEL=${OPENAI_MODEL:-qwen2.5-coder:7b}
+      - WORKSPACE_DIR=/workspace
+    extra_hosts:
+      - "host.docker.internal:host-gateway"

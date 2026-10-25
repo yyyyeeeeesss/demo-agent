@@ -1,0 +1,19 @@
+server:
+  port: 8080
+
+spring:
+  application:
+    name: demo-agent
+  ai:
+    openai:
+      base-url: ${OPENAI_BASE_URL:http://localhost:11434}
+      api-key: ${OPENAI_API_KEY:ollama}
+      chat:
+        options:
+          model: ${OPENAI_MODEL:qwen2.5-coder:7b}
+          temperature: 0.2
+
+agent:
+  max-turns: 30
+  timeout-seconds: 120
+  workspace-dir: ${WORKSPACE_DIR:./workspace}
